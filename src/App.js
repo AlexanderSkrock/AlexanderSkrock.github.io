@@ -6,11 +6,12 @@ import ContactPage from './pages/contact/ContactPage';
 import MaintenancePage from "./pages/maintenance/MaintenancePage";
 import OssPage from './pages/oss/OssPage';
 import ProfessionalExperiencesPage from './pages/professional/ProfessionalExperiencesPage';
+import EntryPage from './pages/entry/EntryPage';
 
 const App = () => (
   <Routes>
     <Route element={ <Root /> }>
-      <Route index element={ <MaintenancePage /> } />
+      <Route index element={ <EntryPage /> } />
       <Route path="professional" element={ <ProfessionalExperiencesPage /> } />
       <Route path="oss" element={ <OssPage /> } />
       <Route path="contact" element={ <ContactPage /> } />

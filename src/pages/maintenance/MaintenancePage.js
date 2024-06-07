@@ -1,18 +1,16 @@
-import React, { useContext } from "react";
-import { Image, Page, PageContent } from "grommet";
+import React from "react";
+import { Page } from "grommet";
 
 import MaintenanceImage from "./maintenance.svg";
-import ConstantsContext from "../../ConstantsContext";
+import FullPageImage from "../../components/FullPageImage";
+import FullPageContent from "../../components/FullPageContent";
 
-const MaintenancePage = () => {
-  const { mainHeight } = useContext(ConstantsContext);
-  return (
-    <Page height={ mainHeight }>
-      <PageContent>
-        <Image src={ MaintenanceImage } alt="Currently down for maintenance!" fit="contain" />
-      </PageContent>
-    </Page>
-  );
-}
+const MaintenancePage = () => (
+  <Page>
+    <FullPageContent>
+      <FullPageImage src={ MaintenanceImage } alt="Currently down for maintenance!" />
+    </FullPageContent>
+  </Page>
+);
 
 export default MaintenancePage;

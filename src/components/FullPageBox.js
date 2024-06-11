@@ -1,17 +1,7 @@
-import React, { useContext } from "react";
+import React from "react";
 
-import { Box } from "grommet";
+import PartialPageBox from "./PartialPageBox";
 
-import ConstantsContext from "../ConstantsContext";
-
-const FullPageBox = ({ children }) => {
-    const { mainHeight } = useContext(ConstantsContext);
-
-    return (
-        <Box height={ mainHeight }>
-            { children }
-        </Box>
-    );
-}
+const FullPageBox = props => <PartialPageBox { ...props } fraction={ 1 } />
 
 export default FullPageBox;

@@ -3,9 +3,9 @@ import { Page, Stack } from "grommet";
 
 import CircleSelector from "./CircleSelector";
 
-import FullPageBox from "../../components/FullPageBox";
 import FullPageImage from "../../components/FullPageImage";
 import FullPageContent from "../../components/FullPageContent";
+import PartialPageBox from "../../components/PartialPageBox";
 
 import business from "./business.svg";
 import cat from "./cat.svg";
@@ -49,9 +49,9 @@ const EntryPage = () => {
             <FullPageContent>
                 <Stack anchor="center" interactiveChild="last">
                     { currentSelection && currentSelection.image && <FullPageImage src={ currentSelection.image } /> }
-                    <FullPageBox>
+                    <PartialPageBox fraction={ 0.5 }>
                         <CircleSelector options={ options } onSelect={ select } />
-                    </FullPageBox>
+                    </PartialPageBox>
                 </Stack>
             </FullPageContent>
         </Page>

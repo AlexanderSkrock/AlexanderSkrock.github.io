@@ -22,6 +22,72 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
         y: centerY + (radius * Math.sin(angleInRadians))
     };
 }
+
+function calculateInnerRectangleForArc(x, y, radius, startAngle, endAngle) {
+    const centerOfCircle = { x, y };
+
+    const start1 = polarToCartesian(x, y, radius, startAngle);
+    const end1 = polarToCartesian(x, y, radius, endAngle);
+
+    const m1 = (end1.y - start1.y) / (end1.x - start1.x);
+    const b1 = m1 + start1.y - (m1 * start1.x)
+
+    const start2 = centerOfCircle;
+    const end2 = polarToCartesian(x, y, radius, startAngle + ((endAngle - startAngle) / 2));
+
+    const m2 = (end2.y - start2.y) / (end2.x - start2.x);
+    const b2 = m2 + start2.y - (m2 * start2.x)
+
+    const centerXOfInnerRect = (b2 - b1) / (m1 - m2);
+    const centerYOfInnerRect = m1 * centerXOfInnerRect + b1;
+    return { centerX: centerXOfInnerRect, centerY: centerYOfInnerRect };
+}
+
+function calculateOuterRectangleForArc(x, y, radius, startAngle, endAngle) {
+    const start1 = polarToCartesian(x, y, radius, startAngle);
+    const end1 = polarToCartesian(x, y, radius, endAngle);
+
+    const minX = Math.min(x, Math.min(start1.x, end1.x));
+    const maxX = Math.max(x, Math.max(start1.x, end1.x));
+    const minY = Math.min(y, Math.min(start1.y, end1.y));
+    const maxY = Math.max(y, Math.max(start1.y, end1.y));
+    
+    const centerPoint = {
+        x: minX + (maxX - minX) / 2,
+        y: minY + (maxY - minY) / 2,
+    };
+    const innerCorner = { x, y };
+    const outerCorner = {
+        x: innerCorner.x + 2 * relative(innerCorner, centerPoint).x,
+        y: innerCorner.y + 2 * relative(innerCorner, centerPoint).y,
+    };
+
+    return { centerX: centerPoint.x, centerY: centerPoint.y, innerCorner, outerCorner };
+}
+
+function calculateCenteringOffsets(x, y, radius, startAngle, endAngle, scaling) {
+    const innerRectangle = calculateInnerRectangleForArc(x, y, radius, startAngle, endAngle)
+    const centerOfInnerRect = { x: innerRectangle.centerX, y: innerRectangle.centerY };
+
+    const outerRectangle = calculateOuterRectangleForArc(x, y, radius, startAngle, endAngle);
+    const centerOfOuterRect = { x: outerRectangle.centerX, y: outerRectangle.centerY };
+    const innerCornerOfOuterRect = outerRectangle.innerCorner;
+    const outerCornerOfOuterRect = outerRectangle.outerCorner;
+
+    const xFactor = relative(centerOfOuterRect, centerOfInnerRect).x === 0
+        ? 0
+        : (relative(centerOfOuterRect, centerOfInnerRect).x > 0 ? 1 : -1);
+    const yFactor = relative(centerOfOuterRect, centerOfInnerRect).y === 0
+        ? 0
+        : (relative(centerOfOuterRect, centerOfInnerRect).y > 0 ? 1 : -1);
+
+    const baseCenteringOffset = (1 - scaling) / 2;
+    const xOffset = baseCenteringOffset + (distX(innerCornerOfOuterRect, outerCornerOfOuterRect) === 0 ? 0 : xFactor * baseCenteringOffset * distX(centerOfInnerRect, centerOfOuterRect) / distX(innerCornerOfOuterRect, outerCornerOfOuterRect));
+    const yOffset = baseCenteringOffset + (distY(innerCornerOfOuterRect, outerCornerOfOuterRect) === 0 ? 0 : yFactor * baseCenteringOffset * distY(centerOfInnerRect, centerOfOuterRect) / distY(innerCornerOfOuterRect, outerCornerOfOuterRect));
+    const offsetPath = `M ${centerOfOuterRect.x} ${centerOfOuterRect.y} L ${centerOfInnerRect.x} ${centerOfInnerRect.y}`;
+
+    return { xOffset, yOffset, offsetPath };
+}
   
 function describeArc(x, y, radius, startAngle, endAngle){
     const start = polarToCartesian(x, y, radius, endAngle);
@@ -31,66 +97,33 @@ function describeArc(x, y, radius, startAngle, endAngle){
     return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;     
 }
 
-const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }}) => {
+const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }, textAnchor}) => {
     // TODO calculate radious
     const radius = 50;
     // TODO Explore why this is needed (possibly the pie char library uses another zero-orientation?!)
     const angleCorrection = 90;
+    // Icons will only use half of the available space to prevent overlap
+    const scaling = 0.5;
 
-    const centerOfCircle = { x, y };
-
-    const start1 = polarToCartesian(x, y, radius, startAngle + angleCorrection);
-    const end1 = polarToCartesian(x, y, radius, startAngle + angleCorrection + degrees);
-
-    const m1 = (end1.y - start1.y) / (end1.x - start1.x);
-    const b1 = m1 + start1.y - (m1 * start1.x)
-
-    const start2 = centerOfCircle;
-    const end2 = polarToCartesian(x, y, radius, startAngle + angleCorrection + (degrees / 2));
-
-    const m2 = (end2.y - start2.y) / (end2.x - start2.x);
-    const b2 = m2 + start2.y - (m2 * start2.x)
-
-    const centerXOfInnerRect = (b2 - b1) / (m1 - m2);
-    const centerYOfInnerRect = m1 * centerXOfInnerRect + b1;
-    const centerOfInnerRect = { x: centerXOfInnerRect, y: centerYOfInnerRect };
-
-    const minX = Math.min(centerOfCircle.x, Math.min(start1.x, end1.x));
-    const maxX = Math.max(centerOfCircle.x, Math.max(start1.x, end1.x));
-    const minY = Math.min(centerOfCircle.y, Math.min(start1.y, end1.y));
-    const maxY = Math.max(centerOfCircle.y, Math.max(start1.y, end1.y));
-
-    const centerOfOuterRect = {
-        x: minX + (maxX - minX) / 2,
-        y: minY + (maxY - minY) / 2,
+    var xOffset = 0;
+    var yOffset = 0;
+    var offsetPath = null;
+    if (textAnchor === "middle") {
+        const centeringOffsets = calculateCenteringOffsets(x, y, radius, startAngle + angleCorrection, startAngle + angleCorrection + degrees, scaling);
+        xOffset = centeringOffsets.xOffset;
+        yOffset = centeringOffsets.yOffset;
+        offsetPath = <path markerEnd="url(#arrow)" d={ centeringOffsets.offsetPath } stroke="blue"></path>;;
     }
-    const start3 = centerOfCircle;
-    const end3 = {
-        x: start3.x + 2 * relative(start3, centerOfOuterRect).x,
-        y: start3.y + 2 * relative(start3, centerOfOuterRect).y,
-    };
-
-    const xFactor = relative(centerOfOuterRect, centerOfInnerRect).x === 0
-        ? 0
-        : (relative(centerOfOuterRect, centerOfInnerRect).x > 0 ? 1 : -1);
-    const yFactor = relative(centerOfOuterRect, centerOfInnerRect).y === 0
-        ? 0
-        : (relative(centerOfOuterRect, centerOfInnerRect).y > 0 ? 1 : -1);
 
     return (
         <svg>
             <defs>
                 <pattern id={ `pattern-${title}` } width="100%" height="100%" patternContentUnits="objectBoundingBox">
-                    <image
-                        x={ 0.25 + (distX(start3, end3) === 0 ? 0 : xFactor * 0.25 * distX(centerOfInnerRect, centerOfOuterRect) / distX(start3, end3)) }
-                        y={ 0.25 + (distY(start3, end3) === 0 ? 0 : yFactor * 0.25 * distY(centerOfInnerRect, centerOfOuterRect) / distY(start3, end3)) }
-                        width="0.5"
-                        height="0.5"
-                        href={ iconRef }
-                    />
+                    <image x={ xOffset } y={ yOffset } width={ scaling } height={ scaling } href={ iconRef } />
                 </pattern>
+                { /* FIXME remove assisting marker */ }
                 <marker 
-                    id='head' 
+                    id='arrow' 
                     orient="auto" 
                     markerWidth='3' 
                     markerHeight='4' 
@@ -101,8 +134,8 @@ const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }
                 </marker>
             </defs>
             <path d={ `M ${x} ${y} ${describeArc(x, y, radius, startAngle + angleCorrection, startAngle + degrees + angleCorrection)} L ${x} ${y}` } fill={ `url(#pattern-${title})` } />
-            <rect x={ start3.x } y={ start3.y } width={ distX(start3, end3) } height={ distY(start3, end3) } stroke="red" fill="none"/>
-            <path markerEnd="url(#head)" d={ `M ${centerOfOuterRect.x} ${centerOfOuterRect.y} L ${centerOfInnerRect.x} ${centerOfInnerRect.y}` } stroke="blue"></path>
+            { /* FIXME remove assisting paths */ }
+            { offsetPath }
         </svg>
     );
 }

@@ -2,18 +2,6 @@ import React, { useMemo } from "react";
 
 import { PieChart } from "react-minimal-pie-chart";
 
-function relative({ x: x1, y: y1}, { x: x2, y: y2 }) {
-    return { x: x2 - x1, y: y2 - y1 };
-}
-
-function distX(p1, p2) {
-    return Math.abs(relative(p1, p2).x);
-}
-
-function distY(p1, p2) {
-    return Math.abs(relative(p1, p2).y);
-}
-
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     var angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
 
@@ -23,24 +11,12 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-function calculateInnerRectangleForArc(x, y, radius, startAngle, endAngle) {
-    const centerOfCircle = { x, y };
+function calculateCentroidForArc(x, y, radius, startAngle, endAngle) {
+    const arcCenter = { x, y };
+    const arcStart = polarToCartesian(x, y, radius, startAngle);
+    const arcEnd = polarToCartesian(x, y, radius, endAngle);
 
-    const start1 = polarToCartesian(x, y, radius, startAngle);
-    const end1 = polarToCartesian(x, y, radius, endAngle);
-
-    const m1 = (end1.y - start1.y) / (end1.x - start1.x);
-    const b1 = m1 + start1.y - (m1 * start1.x)
-
-    const start2 = centerOfCircle;
-    const end2 = polarToCartesian(x, y, radius, startAngle + ((endAngle - startAngle) / 2));
-
-    const m2 = (end2.y - start2.y) / (end2.x - start2.x);
-    const b2 = m2 + start2.y - (m2 * start2.x)
-
-    const centerXOfInnerRect = (b2 - b1) / (m1 - m2);
-    const centerYOfInnerRect = m1 * centerXOfInnerRect + b1;
-    return { centerX: centerXOfInnerRect, centerY: centerYOfInnerRect };
+    return { x: (arcCenter.x + arcStart.x + arcEnd.x) / 3, y: (arcCenter.y + arcStart.y + arcEnd.y) / 3 };
 }
 
 function calculateOuterRectangleForArc(x, y, radius, startAngle, endAngle) {
@@ -56,37 +32,32 @@ function calculateOuterRectangleForArc(x, y, radius, startAngle, endAngle) {
         x: minX + (maxX - minX) / 2,
         y: minY + (maxY - minY) / 2,
     };
-    const innerCorner = { x, y };
+    const innerCorner = { x: minX, y: minY };
     const outerCorner = {
-        x: innerCorner.x + 2 * relative(innerCorner, centerPoint).x,
-        y: innerCorner.y + 2 * relative(innerCorner, centerPoint).y,
+        x: maxX,
+        y: maxY,
     };
 
     return { centerX: centerPoint.x, centerY: centerPoint.y, innerCorner, outerCorner };
 }
 
 function calculateCenteringOffsets(x, y, radius, startAngle, endAngle, scaling) {
-    const innerRectangle = calculateInnerRectangleForArc(x, y, radius, startAngle, endAngle)
-    const centerOfInnerRect = { x: innerRectangle.centerX, y: innerRectangle.centerY };
-
     const outerRectangle = calculateOuterRectangleForArc(x, y, radius, startAngle, endAngle);
-    const centerOfOuterRect = { x: outerRectangle.centerX, y: outerRectangle.centerY };
     const innerCornerOfOuterRect = outerRectangle.innerCorner;
     const outerCornerOfOuterRect = outerRectangle.outerCorner;
 
-    const xFactor = relative(centerOfOuterRect, centerOfInnerRect).x === 0
-        ? 0
-        : (relative(centerOfOuterRect, centerOfInnerRect).x > 0 ? 1 : -1);
-    const yFactor = relative(centerOfOuterRect, centerOfInnerRect).y === 0
-        ? 0
-        : (relative(centerOfOuterRect, centerOfInnerRect).y > 0 ? 1 : -1);
+    const minX = Math.min(x, Math.min(innerCornerOfOuterRect.x, outerCornerOfOuterRect.x));
+    const maxX = Math.max(x, Math.max(innerCornerOfOuterRect.x, outerCornerOfOuterRect.x));
+    const minY = Math.min(y, Math.min(innerCornerOfOuterRect.y, outerCornerOfOuterRect.y));
+    const maxY = Math.max(y, Math.max(innerCornerOfOuterRect.y, outerCornerOfOuterRect.y));
 
     const baseCenteringOffset = (1 - scaling) / 2;
-    const xOffset = baseCenteringOffset + (distX(innerCornerOfOuterRect, outerCornerOfOuterRect) === 0 ? 0 : xFactor * baseCenteringOffset * distX(centerOfInnerRect, centerOfOuterRect) / distX(innerCornerOfOuterRect, outerCornerOfOuterRect));
-    const yOffset = baseCenteringOffset + (distY(innerCornerOfOuterRect, outerCornerOfOuterRect) === 0 ? 0 : yFactor * baseCenteringOffset * distY(centerOfInnerRect, centerOfOuterRect) / distY(innerCornerOfOuterRect, outerCornerOfOuterRect));
-    const offsetPath = `M ${centerOfOuterRect.x} ${centerOfOuterRect.y} L ${centerOfInnerRect.x} ${centerOfInnerRect.y}`;
+    const centroid = calculateCentroidForArc(x, y, radius, startAngle, endAngle);
 
-    return { xOffset, yOffset, offsetPath };
+    const xOffset = -baseCenteringOffset + (centroid.x - minX) / (maxX - minX);
+    const yOffset = -baseCenteringOffset + (centroid.y - minY) / (maxY - minY);
+
+    return { xOffset, yOffset };
 }
   
 function describeArc(x, y, radius, startAngle, endAngle){
@@ -107,12 +78,10 @@ const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }
 
     var xOffset = 0;
     var yOffset = 0;
-    var offsetPath = null;
     if (textAnchor === "middle") {
         const centeringOffsets = calculateCenteringOffsets(x, y, radius, startAngle + angleCorrection, startAngle + angleCorrection + degrees, scaling);
         xOffset = centeringOffsets.xOffset;
         yOffset = centeringOffsets.yOffset;
-        offsetPath = <path markerEnd="url(#arrow)" d={ centeringOffsets.offsetPath } stroke="blue"></path>;;
     }
 
     return (
@@ -121,21 +90,8 @@ const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }
                 <pattern id={ `pattern-${title}` } width="100%" height="100%" patternContentUnits="objectBoundingBox">
                     <image x={ xOffset } y={ yOffset } width={ scaling } height={ scaling } href={ iconRef } />
                 </pattern>
-                { /* FIXME remove assisting marker */ }
-                <marker 
-                    id='arrow' 
-                    orient="auto" 
-                    markerWidth='3' 
-                    markerHeight='4' 
-                    refX='0.1' 
-                    refY='2'
-                    >
-                    <path d='M0,0 V4 L2,2 Z' fill="black" />
-                </marker>
             </defs>
             <path d={ `M ${x} ${y} ${describeArc(x, y, radius, startAngle + angleCorrection, startAngle + degrees + angleCorrection)} L ${x} ${y}` } fill={ `url(#pattern-${title})` } />
-            { /* FIXME remove assisting paths */ }
-            { offsetPath }
         </svg>
     );
 }

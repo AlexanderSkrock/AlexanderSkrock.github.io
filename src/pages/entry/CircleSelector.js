@@ -2,6 +2,20 @@ import React, { useMemo } from "react";
 
 import { PieChart } from "react-minimal-pie-chart";
 
+// Icons will only use half of the available space to prevent overlap
+const ICON_SCALING = 0.5;
+
+// FIXME Explore why this is needed (possibly the pie char library uses another zero-orientation?!)
+// We use this as a bridge between the angles the library provides and the angles we use in our calculations.
+const ANGLE_CORRECTION = 90;
+
+function defaultRadius() {
+    // see default values: https://www.npmjs.com/package/react-minimal-pie-chart#about-data-prop
+    const viewBoxSize = 100;
+    const radiusSize = 50;
+    return viewBoxSize * radiusSize / 100;
+}
+
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     var angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
 
@@ -69,17 +83,14 @@ function describeArc(x, y, radius, startAngle, endAngle){
 }
 
 const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }, textAnchor}) => {
-    // TODO calculate radious
-    const radius = 50;
-    // TODO Explore why this is needed (possibly the pie char library uses another zero-orientation?!)
-    const angleCorrection = 90;
-    // Icons will only use half of the available space to prevent overlap
-    const scaling = 0.5;
+    // Currently we rely on the default radius as the label render props do not include all necessary information
+    // As alternative we could create a renderer on mount because at this level we could influence all relevant props for the pie chart.
+    const radius = defaultRadius();
 
     var xOffset = 0;
     var yOffset = 0;
     if (textAnchor === "middle") {
-        const centeringOffsets = calculateCenteringOffsets(x, y, radius, startAngle + angleCorrection, startAngle + angleCorrection + degrees, scaling);
+        const centeringOffsets = calculateCenteringOffsets(x, y, radius, startAngle + ANGLE_CORRECTION, startAngle + ANGLE_CORRECTION + degrees, ICON_SCALING);
         xOffset = centeringOffsets.xOffset;
         yOffset = centeringOffsets.yOffset;
     }
@@ -88,10 +99,10 @@ const iconRenderer = ({ x, y, dataEntry: { degrees, iconRef, startAngle, title }
         <svg>
             <defs>
                 <pattern id={ `pattern-${title}` } width="100%" height="100%" patternContentUnits="objectBoundingBox">
-                    <image x={ xOffset } y={ yOffset } width={ scaling } height={ scaling } href={ iconRef } />
+                    <image x={ xOffset } y={ yOffset } width={ ICON_SCALING } height={ ICON_SCALING } href={ iconRef } />
                 </pattern>
             </defs>
-            <path d={ `M ${x} ${y} ${describeArc(x, y, radius, startAngle + angleCorrection, startAngle + degrees + angleCorrection)} L ${x} ${y}` } fill={ `url(#pattern-${title})` } />
+            <path d={ `M ${x} ${y} ${describeArc(x, y, radius, startAngle + ANGLE_CORRECTION, startAngle + degrees + ANGLE_CORRECTION)} L ${x} ${y}` } fill={ `url(#pattern-${title})` } />
         </svg>
     );
 }

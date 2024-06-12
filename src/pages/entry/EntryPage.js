@@ -45,7 +45,7 @@ const EntryPage = () => {
     const [currentSelection, select] = useState(options[1]);
 
     return (
-        <Page>
+        <Page data-testid="entryPage">
             <FullPageContent>
                 <Stack anchor="center" interactiveChild="last">
                     { currentSelection && currentSelection.image && <FullPageImage src={ currentSelection.image } /> }

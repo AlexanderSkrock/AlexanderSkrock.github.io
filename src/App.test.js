@@ -17,17 +17,15 @@ const renderRoute = (path) => {
 test('renders under construction info for root page without slash', () => {
   renderRoute();
 
-  const elements = screen.getAllByAltText(/maintenance/i);
-  expect(elements).toHaveLength(1);
-  expect(elements[0]).toBeInTheDocument();
+  const grid = screen.getByTestId("entryPage");
+  expect(grid).toBeInTheDocument();
 });
 
 test('renders under construction info for root page with slash', () => {
   renderRoute("/")
 
-  const elements = screen.getAllByAltText(/maintenance/i);
-  expect(elements).toHaveLength(1);
-  expect(elements[0]).toBeInTheDocument();
+  const grid = screen.getByTestId("entryPage");
+  expect(grid).toBeInTheDocument();
 });
 
 test('renders experiences info for professional experience page', () => {

@@ -46,7 +46,7 @@ const EntryPage = () => {
 
     return (
         <Page data-testid="entryPage">
-            <FullPageContent>
+            <FullPageContent justify="center">
                 <Stack anchor="center" interactiveChild="last">
                     { currentSelection && currentSelection.image && <FullPageImage src={ currentSelection.image } /> }
                     <PartialPageBox fraction={ 0.5 }>
